@@ -45,7 +45,7 @@ accurate as the one I’m using from GADM. Calculation information:
 > Surface area is a country’s total area, including areas under inland
 > bodies of water and some coastal waterways.
 
-![World Bank shapefile](data/world_bank_sa.png)
+![World Bank shapefile](world_bank_sa.png)
 
 # Planimetric surface area
 

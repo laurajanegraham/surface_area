@@ -7,6 +7,7 @@ Laura J. Graham
 library(raster)
 library(sf)
 library(tidyverse)
+library(viridis)
 ```
 
 # Background
@@ -39,8 +40,9 @@ job? Or someone over at
 
 # World bank calculation
 
-Limited information about calculation, but the shapefile used is not as
-accurate as the one I’m using from GADM. Calculation information:
+Surface area for the UK of 243,610. Limited information about
+calculation, but the shapefile used is not as accurate as the one I’m
+using from GADM. Calculation information:
 
 > Surface area is a country’s total area, including areas under inland
 > bodies of water and some coastal waterways.
@@ -69,9 +71,18 @@ st_area(uk_shp) %>% units::set_units(km^2)
 
     ## 245415 [km^2]
 
+``` r
+ggplot(uk_shp) + 
+  geom_sf()
+```
+
+![](surface_area_files/figure-gfm/uk_shp-1.png)<!-- -->
+
 Okay, so this is higher than either of the figures Matt Parker found…
 this is likely to be an issue with how detailed the underlying
-shapefiles being used are, or if raster data the spatial resolution.
+shapefiles being used are, or if raster data the spatial resolution. The
+shapefile I have used is much more detailed and includes some of the
+Scottish islands which are missed off in the world bank calculation.
 
 # Surface calculation with DEM data
 
@@ -85,6 +96,48 @@ Elevation Data
 Version 4](https://developers.google.com/earth-engine/datasets/catalog/CGIAR_SRTM90_V4),
 and is aggregated to 500m and 1000m and reprojected to British National
 Grid.
+
+``` r
+plot_rasters <- function(res) {
+  fname <- list.files("~/Google Drive/surface_area/", 
+                      pattern = as.character(res), 
+                      full.names = TRUE)
+  elev <- raster(fname)
+  elev <- mask(elev, uk_shp)
+  slope <- terrain(elev, opt = "slope")
+  aspect <- terrain(elev, opt = "aspect")
+  hill <- hillShade(slope, aspect)
+  
+  plot(hill,
+    col=grey(1:100/100),  #create a color ramp of grey colors
+    legend=FALSE,
+    main=paste0(res, "m resolution data"),
+    axes=FALSE)
+
+  # add the DSM on top of the hillshade
+  plot(elev,
+       col=viridis(100),
+       alpha=0.4,
+       add=TRUE,
+       legend=FALSE)
+}
+
+plot_rasters(90)
+```
+
+![](surface_area_files/figure-gfm/plot_elevation-1.png)<!-- -->
+
+``` r
+plot_rasters(500)
+```
+
+![](surface_area_files/figure-gfm/plot_elevation-2.png)<!-- -->
+
+``` r
+plot_rasters(1000)
+```
+
+![](surface_area_files/figure-gfm/plot_elevation-3.png)<!-- -->
 
 DEM-based surface areas were calculated using `sp::surfaceArea`. A
 method based on [Calculating Landscape Surface Area from Digital
@@ -178,3 +231,23 @@ percentage increase when taking into account elevation.
 Based on these figures, we can conclude that surface area is calculated
 based on planimetric features, rather than taking elevation into
 account.
+
+``` r
+out <- read_csv("surface_areas.csv") %>% 
+  gather(key, value, -Region, -`Spatial resolution`, -`% change`) %>% 
+  mutate(Region = factor(Region, 
+                         levels = c("England", 
+                                    "Northern Ireland", 
+                                    "Wales", 
+                                    "Scotland", 
+                                    "United Kingdom")),
+         `Spatial resolution` = paste0("Spatial resolution = ", 
+                                       `Spatial resolution`))
+
+ggplot(out, aes(x = Region, y = `% change`)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap(~`Spatial resolution`, ncol = 1) + 
+  coord_flip()
+```
+
+![](surface_area_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->

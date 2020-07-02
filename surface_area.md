@@ -60,6 +60,13 @@ uk_countries <- getData(name = "GADM",
   st_transform("EPSG:27700") %>% # British National Grid
   select(name = NAME_1)
 
+cumbria <- getData(name = "GADM", 
+                       country = "GBR", 
+                       level = 2) %>% 
+  st_as_sf() %>% 
+  st_transform("EPSG:27700") %>% # British National Grid
+  filter(NAME_2 == "Cumbria")
+
 # dissolved shapefile for whole UK
 uk_shp <- getData(name = "GADM", country = "GBR", level = 0) %>% 
   st_as_sf() %>% 
@@ -103,7 +110,8 @@ plot_rasters <- function(res) {
                       pattern = as.character(res), 
                       full.names = TRUE)
   elev <- raster(fname)
-  elev <- mask(elev, uk_shp)
+  elev <- crop(elev, cumbria)
+  elev <- mask(elev, cumbria)
   slope <- terrain(elev, opt = "slope")
   aspect <- terrain(elev, opt = "aspect")
   hill <- hillShade(slope, aspect)
@@ -111,7 +119,7 @@ plot_rasters <- function(res) {
   plot(hill,
     col=grey(1:100/100),  #create a color ramp of grey colors
     legend=FALSE,
-    main=paste0(res, "m resolution data"),
+    main=paste0("Cumbria elevation: ", res, "m resolution data"),
     axes=FALSE)
 
   # add the DSM on top of the hillshade
@@ -233,7 +241,7 @@ based on planimetric features, rather than taking elevation into
 account.
 
 ``` r
-out <- read_csv("surface_areas.csv") %>% 
+out <- out %>% 
   gather(key, value, -Region, -`Spatial resolution`, -`% change`) %>% 
   mutate(Region = factor(Region, 
                          levels = c("England", 
